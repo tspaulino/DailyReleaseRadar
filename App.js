@@ -6,23 +6,24 @@
  * @flow
  */
 
-import React, { Component } from 'react';
+import React, { Component } from 'react'
 import {
   Linking,
   Text,
-  Image
-} from 'react-native';
+  Image,
+  View,
+  ScrollView
+} from 'react-native'
 
 import {
-  Header,
+  ActivityIndicator,
+  Appbar,
   Button,
-  Container,
-  Content,
-  Body,
-  Card,
-  CardItem
-} from 'native-base'
+  DataTable
+} from 'react-native-paper'
+
 import { authorize, profile, requestToken, fetchAllReleases, fetchAllArtists } from './src/api'
+
 
 class App extends Component {
 
@@ -32,32 +33,17 @@ class App extends Component {
       accessData: null,
       artists: null,
       profile: null,
-      releases: null,
-      filtered: false
+      releases: null
     }
     this.handleUserToken = this.handleUserToken.bind(this)
     this.fetchArtists = this.fetchArtists.bind(this)
     this.fetchProfile = this.fetchProfile.bind(this)
     this.fetchNewReleases = this.fetchNewReleases.bind(this)
+    this.linkToAlbum = this.linkToAlbum.bind(this)
   }
 
   componentDidMount() {
     Linking.addEventListener('url', this.handleUserToken)
-  }
-
-  componentDidUpdate() {
-    const {
-      artists,
-      releases,
-      filtered
-    } = this.state
-    if (!filtered && artists && releases) {
-      const filteredReleases = releases.filter((album, index) => album.artists
-        .map((artist) => artist.id)
-        .some((artistId) => artists.includes(artistId))
-      ).sort((a, b) => new Date(a.release_date) < new Date(b.release_date))
-      this.setState({ filtered: true, releases: filteredReleases })
-    }
   }
 
   componentWillUnmount() {
@@ -90,16 +76,19 @@ class App extends Component {
   }
 
   fetchNewReleases() {
-    const { access_token, artists } = this.state.accessData
+    const { access_token } = this.state.accessData
+    const { artists } = this.state
     const params = {
       q: 'tag:new',
       type: 'album',
       limit: 50
     }
     if (access_token) {
-      fetchAllReleases(access_token, params, (data) => this.setState({ releases: data }))
+      fetchAllReleases(access_token, params, artists, (data) => {
+        const newReleases = data.sort((a, b) => Date.parse(b.release_date) < Date.parse(a.release_date))
+        this.setState({ releases: newReleases })
+      })
     }
-
   }
 
   displayName() {
@@ -107,43 +96,63 @@ class App extends Component {
     return `Welcome, ${profile.display_name}`
   }
 
-  albumName(album) {
-    return `${album.name} - ${album.release_date}`
+  displayArtistsName(artists) {
+    if (artists.length == 1)
+      return artists[0].name
+    return artists.map((artist) => artist.name).join(' feat. ')
+  }
+
+  linkToAlbum(album) {
+    Linking.openURL(album.external_urls.spotify)
   }
 
   render() {
     const { profile, artists, releases } = this.state
     return (
-      <Container>
+      <View style={{ flex: 1 }}>
         {!profile &&
-          <Button onPress={authorize}>
-            <Text>Sign up with Spotify</Text>
+          <View style={{ flex: 2, justifyContent: 'center', alignContent: 'center' }}>
+            <Button onPress={authorize}>
+              Sign up with Spotify
           </Button>
+          </View>
         }
         {profile &&
-          <Header>
-            <Body>
-              <Text>{this.displayName()}</Text>
-            </Body>
-          </Header>
+          <Appbar>
+            <Appbar.Content title={this.displayName()} />
+          </Appbar>
+        }
+        {profile && !releases &&
+          <View style={{ flex: 2, justifyContent: 'center', alignContent: 'center' }}>
+            <Text style={{ textAlign: 'center' }}>Please wait while we match the last releases from your favorite artists...</Text>
+            <ActivityIndicator animating={true} />
+          </View>
         }
         {artists && releases &&
-          <Content style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap' }}>
-            {releases.map((album, index) =>
-              <Card key={index} style={{ width: '48%' }}>
-                <CardItem cardBody>
-                  {/* <Image source={{ uri: album.images[album.images.length - 1].url }} style={{ flex: 1 }} /> */}
-                </CardItem>
-                <CardItem>
-                  <Body>
-                    <Text>{this.albumName(album)}</Text>
-                  </Body>
-                </CardItem>
-              </Card>
-            )}
-          </Content>
+          <ScrollView>
+            <DataTable>
+              <DataTable.Header>
+                <DataTable.Title>Title</DataTable.Title>
+                <DataTable.Title>Artist</DataTable.Title>
+                <DataTable.Title>Release Date</DataTable.Title>
+              </DataTable.Header>
+              {releases.map((album, index) =>
+                <DataTable.Row key={index} onPress={() => this.linkToAlbum(album)}>
+                  <DataTable.Cell>
+                    {album.name}
+                  </DataTable.Cell>
+                  <DataTable.Cell>
+                    {this.displayArtistsName(album.artists)}
+                  </DataTable.Cell>
+                  <DataTable.Cell>
+                    {album.release_date}
+                  </DataTable.Cell>
+                </DataTable.Row>
+              )}
+            </DataTable>
+          </ScrollView>
         }
-      </Container >
+      </ View >
     );
   }
 }
