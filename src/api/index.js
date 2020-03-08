@@ -39,6 +39,7 @@ export function requestToken(codeUrl, callback) {
             callback(res.data)
         })
         .catch((err) => {
+            console.log(params)
             console.log(`ERROR`, err)
             callback(err)
         })
@@ -81,7 +82,9 @@ export function fetchAllArtists(token, callback) {
     return fetchPaginatedContent('artists', 'https://api.spotify.com/v1/me/following', token, {
         type: 'artist',
         limit: '50'
-    }).then((data) => callback(data.map((artist) => artist.id)))
+    })
+        .then((data) => callback(data.map((artist) => artist.id)))
+        .catch((err) => console.log('ERROR', err))
 }
 
 function fetchPaginatedContent(type, url, token, params) {

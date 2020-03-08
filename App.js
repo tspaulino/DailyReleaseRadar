@@ -16,13 +16,12 @@ import {
 } from 'react-native'
 
 import {
-  ActivityIndicator,
-  Appbar,
-  Button,
   DataTable
 } from 'react-native-paper'
 
-import { authorize, profile, requestToken, fetchAllReleases, fetchAllArtists } from './src/api'
+import Header from './src/components/Header'
+
+import { profile, fetchAllReleases, fetchAllArtists } from './src/api'
 
 
 class App extends Component {
@@ -30,32 +29,14 @@ class App extends Component {
   constructor(props) {
     super(props)
     this.state = {
-      accessData: null,
       artists: null,
       profile: null,
       releases: null
     }
-    this.handleUserToken = this.handleUserToken.bind(this)
     this.fetchArtists = this.fetchArtists.bind(this)
     this.fetchProfile = this.fetchProfile.bind(this)
     this.fetchNewReleases = this.fetchNewReleases.bind(this)
     this.linkToAlbum = this.linkToAlbum.bind(this)
-  }
-
-  componentDidMount() {
-    Linking.addEventListener('url', this.handleUserToken)
-  }
-
-  componentWillUnmount() {
-    Linking.removeEventListener('url', this.handleUserToken)
-  }
-
-  handleUserToken(event) {
-    requestToken(event, (data) => {
-      this.setState({ accessData: data })
-      this.fetchProfile()
-      this.fetchArtists()
-    })
   }
 
   fetchProfile() {
@@ -69,6 +50,7 @@ class App extends Component {
     const { access_token } = this.state.accessData
     if (access_token) {
       fetchAllArtists(access_token, (data) => {
+        console.log(data)
         this.setState({ artists: data })
         this.fetchNewReleases()
       })
@@ -83,17 +65,13 @@ class App extends Component {
       type: 'album',
       limit: 50
     }
+    console.log(access_token)
     if (access_token) {
       fetchAllReleases(access_token, params, artists, (data) => {
-        const newReleases = data.sort((a, b) => Date.parse(b.release_date) < Date.parse(a.release_date))
+        const newReleases = data.sort((a, b) => Date.parse(b.release_date) - Date.parse(a.release_date))
         this.setState({ releases: newReleases })
       })
     }
-  }
-
-  displayName() {
-    const { profile } = this.state
-    return `Welcome, ${profile.display_name}`
   }
 
   displayArtistsName(artists) {
@@ -107,20 +85,11 @@ class App extends Component {
   }
 
   render() {
-    const { profile, artists, releases } = this.state
+    const { profile } = this.props
     return (
       <View style={{ flex: 1 }}>
-        {!profile &&
-          <View style={{ flex: 2, justifyContent: 'center', alignContent: 'center' }}>
-            <Button onPress={authorize}>
-              Sign up with Spotify
-          </Button>
-          </View>
-        }
         {profile &&
-          <Appbar>
-            <Appbar.Content title={this.displayName()} />
-          </Appbar>
+          <Header profile={profile} />
         }
         {profile && !releases &&
           <View style={{ flex: 2, justifyContent: 'center', alignContent: 'center' }}>
